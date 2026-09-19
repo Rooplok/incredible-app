@@ -39,6 +39,7 @@ public class HelloWorld {
     private static final Color SECONDARY_TEXT = new Color(150, 153, 158);
 
     private static final Color DEFAULT_PARTICLE = new Color(205, 209, 212);
+    private static final Color DEFAULT_HOVER = new Color(45, 156, 219);
 
     private static final Color BUTTON_HOVER = new Color(45, 47, 51);
     private static final Color CLOSE_HOVER = new Color(190, 55, 55);
@@ -243,6 +244,7 @@ public class HelloWorld {
 
         // Настраиваемые параметры
         private Color particleColor = DEFAULT_PARTICLE;
+        private Color hoverColor = DEFAULT_HOVER;
         private Color particleBackgroundColor = CARD;
 
         private float speedMultiplier = 1.0f;
@@ -324,6 +326,17 @@ public class HelloWorld {
 
         Color getParticleColor() {
             return particleColor;
+        }
+
+        void setHoverColor(Color color) {
+            if (color != null) {
+                hoverColor = color;
+                repaint();
+            }
+        }
+
+        Color getHoverColor() {
+            return hoverColor;
         }
 
         void setParticleBackgroundColor(Color color) {
@@ -1030,6 +1043,8 @@ public class HelloWorld {
                         + p.displacementY;
 
                 // ---------- Отталкивание курсором ----------
+                float colorMix = 0f;
+
                 if (mouseInside) {
                     float dx = currentX - mouseX;
                     float dy = currentY - mouseY;
@@ -1042,36 +1057,41 @@ public class HelloWorld {
                             mouseRadius
                             * mouseRadius;
 
-                    if (
-                            distanceSquared < radiusSquared
-                            && distanceSquared > 0.01f
-                    ) {
+                    if (distanceSquared < radiusSquared) {
                         float distance =
                                 (float) Math.sqrt(
                                         distanceSquared
                                 );
 
-                        float nx = dx / distance;
-                        float ny = dy / distance;
-
                         float influence =
                                 1f
                                 - distance / mouseRadius;
 
-                        float force =
-                                mouseForce
+                        // smoothstep: мягкий переход цвета к краю радиуса
+                        colorMix =
+                                influence
                                 * influence
-                                * influence;
+                                * (3f - 2f * influence);
 
-                        p.velocityX +=
-                                nx
-                                * force
-                                * dt;
+                        if (distanceSquared > 0.01f) {
+                            float nx = dx / distance;
+                            float ny = dy / distance;
 
-                        p.velocityY +=
-                                ny
-                                * force
-                                * dt;
+                            float force =
+                                    mouseForce
+                                    * influence
+                                    * influence;
+
+                            p.velocityX +=
+                                    nx
+                                    * force
+                                    * dt;
+
+                            p.velocityY +=
+                                    ny
+                                    * force
+                                    * dt;
+                        }
                     }
                 }
 
@@ -1140,11 +1160,33 @@ public class HelloWorld {
                         + floatOffsetY
                         + p.displacementY;
 
+                int red = particleColor.getRed();
+                int green = particleColor.getGreen();
+                int blue = particleColor.getBlue();
+
+                // ---------- Подсветка курсором ----------
+                if (colorMix > 0f) {
+                    red += (int) (
+                            (hoverColor.getRed() - red)
+                            * colorMix
+                    );
+
+                    green += (int) (
+                            (hoverColor.getGreen() - green)
+                            * colorMix
+                    );
+
+                    blue += (int) (
+                            (hoverColor.getBlue() - blue)
+                            * colorMix
+                    );
+                }
+
                 g2.setColor(
                         new Color(
-                                particleColor.getRed(),
-                                particleColor.getGreen(),
-                                particleColor.getBlue(),
+                                red,
+                                green,
+                                blue,
                                 p.opacity
                         )
                 );
@@ -4959,6 +5001,24 @@ public class HelloWorld {
                     Box.createVerticalStrut(12)
             );
 
+            // ---------- Цвет наведения ----------
+            ColorButton hoverColorButton =
+                    new ColorButton(
+                            DEFAULT_HOVER,
+                            particlePanel::setHoverColor
+                    );
+
+            settings.add(
+                    createColorRow(
+                            "Цвет наведения",
+                            hoverColorButton
+                    )
+            );
+
+            settings.add(
+                    Box.createVerticalStrut(12)
+            );
+
             // ---------- Цвет фона ----------
             ColorButton backgroundColorButton =
                     new ColorButton(
@@ -5097,6 +5157,14 @@ public class HelloWorld {
 
                 particlePanel.setParticleColor(
                         DEFAULT_PARTICLE
+                );
+
+                hoverColorButton.setSelectedColor(
+                        DEFAULT_HOVER
+                );
+
+                particlePanel.setHoverColor(
+                        DEFAULT_HOVER
                 );
 
                 backgroundColorButton.setSelectedColor(
